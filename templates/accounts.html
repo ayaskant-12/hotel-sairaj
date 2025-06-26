@@ -1,0 +1,313 @@
+<!-- templates/accounts.html -->
+{% extends "base.html" %}
+
+{% block page_title %}Accounts Management{% endblock %}
+
+{% block content %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="font-weight: 600;">Accounts Dashboard</h2>
+        <div>
+            <button class="add-guest-btn" onclick="openModal('addRevenueModal')">
+                <i class="fas fa-plus"></i> Add Revenue
+            </button>
+            <button class="add-guest-btn" style="background-color: #dc3545;" onclick="openModal('addExpenseModal')">
+                <i class="fas fa-plus"></i> Add Expense
+            </button>
+        </div>
+    </div>
+    
+    <div class="stats-container">
+        <div class="stat-card">
+            <div class="stat-icon revenue" style="background: rgba(40, 167, 69, 0.1); color: #28a745;">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <div class="stat-info">
+                <h3>₹{{ total_revenue | round(2) }}</h3>
+                <p>Total Revenue</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon expense" style="background: rgba(220, 53, 69, 0.1); color: #dc3545;">
+                <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <div class="stat-info">
+                <h3>₹{{ total_expense | round(2) }}</h3>
+                <p>Total Expenses</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon balance" style="background: rgba(23, 162, 184, 0.1); color: #17a2b8;">
+                <i class="fas fa-balance-scale"></i>
+            </div>
+            <div class="stat-info">
+                <h3>₹{{ balance | round(2) }}</h3>
+                <p>Current Balance</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h3>Income vs Expenses (Last 30 Days)</h3>
+        </div>
+        <div class="card-body">
+            <canvas id="financeChart" height="250"></canvas>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h3>Recent Revenue</h3>
+        </div>
+        <div class="card-body">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Source</th>
+                        <th>Amount</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for revenue in revenues %}
+                    <tr>
+                        <td>{{ revenue.date.strftime('%d %b %Y') }}</td>
+                        <td>{{ revenue.source }}</td>
+                        <td>₹{{ revenue.amount | round(2) }}</td>
+                        <td>{{ revenue.notes or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 20px;">
+                            No revenue records found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h3>Recent Expenses</h3>
+        </div>
+        <div class="card-body">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th>Amount</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in expenses %}
+                    <tr>
+                        <td>{{ expense.date.strftime('%d %b %Y') }}</td>
+                        <td>{{ expense.description }}</td>
+                        <td>{{ expense.category }}</td>
+                        <td>₹{{ expense.amount | round(2) }}</td>
+                        <td>{{ expense.notes or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 20px;">
+                            No expense records found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Add Revenue Modal -->
+    <div class="modal" id="addRevenueModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Revenue</h3>
+                <button class="close-modal" onclick="closeModal('addRevenueModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addRevenueForm" onsubmit="addRevenue(event)">
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" name="date" class="form-control" value="{{ current_time('%Y-%m-%d') }}">
+                    </div>
+                    
+                    <div class="form-group required">
+                        <label>Source</label>
+                        <input type="text" name="source" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group required">
+                        <label>Amount (₹)</label>
+                        <input type="number" name="amount" class="form-control" step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn-submit">Add Revenue</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Expense Modal -->
+    <div class="modal" id="addExpenseModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Expense</h3>
+                <button class="close-modal" onclick="closeModal('addExpenseModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addExpenseForm" onsubmit="addExpense(event)">
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" name="date" class="form-control" value="{{ current_time('%Y-%m-%d') }}">
+                    </div>
+                    
+                    <div class="form-group required">
+                        <label>Description</label>
+                        <input type="text" name="description" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group required">
+                        <label>Category</label>
+                        <select name="category" class="form-control" required>
+                            <option value="Staff">Staff</option>
+                            <option value="Supplies">Supplies</option>
+                            <option value="Maintenance">Maintenance</option>
+                            <option value="Utilities">Utilities</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group required">
+                        <label>Amount (₹)</label>
+                        <input type="number" name="amount" class="form-control" step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn-submit">Add Expense</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get chart data from Flask
+            const revenueData = {{ revenue_data | tojson | safe }};
+            const expenseData = {{ expense_data | tojson | safe }};
+            const labels = {{ chart_labels | tojson | safe }};
+        
+            // Initialize finance chart
+            const ctx = document.getElementById('financeChart').getContext('2d');
+            const chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Revenue',
+                        data: revenueData,
+                        backgroundColor: 'rgba(40, 167, 69, 0.5)',
+                        borderColor: 'rgba(40, 167, 69, 1)',
+                        borderWidth: 1
+                    }, {
+                        label: 'Expenses',
+                        data: expenseData,
+                        backgroundColor: 'rgba(220, 53, 69,     0.5)',
+                        borderColor: 'rgba(220, 53, 69, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '₹' + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+        
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        function addRevenue(event) {
+            event.preventDefault();
+            const form = document.getElementById('addRevenueForm');
+            const formData = new FormData(form);
+            
+            fetch("{{ url_for('add_revenue') }}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Revenue added successfully!');
+                    closeModal('addRevenueModal');
+                    form.reset();
+                    setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    showToast(data.error || 'Error adding revenue', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred. Please try again.', 'error');
+            });
+        }
+        
+        function addExpense(event) {
+            event.preventDefault();
+            const form = document.getElementById('addExpenseForm');
+            const formData = new FormData(form);
+            
+            fetch("{{ url_for('add_expense') }}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Expense added successfully!');
+                    closeModal('addExpenseModal');
+                    form.reset();
+                    setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    showToast(data.error || 'Error adding expense', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred. Please try again.', 'error');
+            });
+        }
+    </script>
+{% endblock %}
