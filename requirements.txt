@@ -6,3 +6,4 @@ pytz
 reportlab
 openpyxl
 python-dotenv
+jwt
