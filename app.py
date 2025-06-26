@@ -32,6 +32,13 @@ app.config['HOTEL_NAME'] = os.environ.get('HOTEL_NAME', 'Hotel SairaJ')
 # Create upload directory
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+@app.cli.command("init-db")
+def init_db_command():
+    db.create_all()
+    create_admin_user()
+    print("Database initialized")
+    
+
 db = SQLAlchemy(app)
 @app.context_processor
 def inject_current_time():
