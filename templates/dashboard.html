@@ -1,0 +1,65 @@
+<!-- templates/dashboard.html -->
+{% extends "base.html" %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+    <div class="stats-container">
+        <div class="stat-card">
+            <div class="stat-icon guest">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ active_guests }}</h3>
+                <p>Active Guests Today</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon room">
+                <i class="fas fa-bed"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ available_rooms }}</h3>
+                <p>Available Rooms</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon revenue">
+                <i class="fas fa-rupee-sign"></i>
+            </div>
+            <div class="stat-info">
+                <h3>₹{{ revenue_today | round(2) }}</h3>
+                <p>Revenue Today</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon balance" style="background: rgba(23, 162, 184, 0.1); color: #17a2b8;">
+                <i class="fas fa-wallet"></i>
+            </div>
+            <div class="stat-info">
+                <!-- Calculate profit as revenue minus fixed expense (3560) -->
+                <h3>₹{{ (revenue_today - expenses_today) | round(2) }}</h3>
+                <p>Today's Profit</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h3>Recent Activity</h3>
+        </div>
+        <div class="card-body">
+            <ul class="activity-log">
+                {% for activity in activities %}
+                <li>
+                    <div class="time">{{ activity.timestamp.strftime('%I:%M %p') }}</div>
+                    <div class="activity">{{ activity.activity }}</div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+{% endblock %}

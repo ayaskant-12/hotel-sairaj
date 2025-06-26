@@ -1,0 +1,481 @@
+{% extends "base.html" %}
+
+{% block page_title %}Guest Management{% endblock %}
+
+{% block content %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="font-weight: 600;">Guest Management</h2>
+        <button class="add-guest-btn" onclick="openModal('addGuestModal')">
+            <i class="fas fa-plus"></i> Add New Guest
+        </button>
+    </div>
+    <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+    <a href="{{ url_for('export_guests_excel') }}" class="btn btn-success">
+        <i class="fas fa-file-excel"></i> Export to Excel
+    </a>
+    <a href="{{ url_for('export_guests_pdf') }}" class="btn btn-danger">
+        <i class="fas fa-file-pdf"></i> Export to PDF
+    </a>
+</div>
+    <!-- Search Bar -->
+    <div style="margin-bottom: 20px; display: flex;">
+        <form id="searchForm" action="{{ url_for('guests') }}" method="GET" style="display: flex; width: 100%;">
+            <input type="text" name="search" class="form-control" placeholder="Search by name, ID, phone, or room number" 
+                   value="{{ search_query }}" style="border-radius: 4px 0 0 4px;">
+            <button type="submit" class="btn btn-primary" style="border-radius: 0 4px 4px 0; padding: 0 15px;">
+                <i class="fas fa-search"></i>
+            </button>
+        </form>
+    </div>
+    
+    {% if search_query and not guests %}
+    <div style="margin-bottom: 15px;">
+        <p>No guests found for "{{ search_query }}".</p>
+    </div>
+    {% endif %}
+    
+    <!-- Clear search button if there's a search query -->
+    {% if search_query %}
+    <div style="margin-bottom: 15px;">
+        <a href="{{ url_for('guests') }}" class="btn" style="background: #6c757d; color: white;">
+            <i class="fas fa-times"></i> Clear Search
+        </a>
+    </div>
+    {% endif %}
+    
+    <div class="card">
+        <div class="card-body">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Room No.</th>
+                        <th>Check-In</th>
+                        <th>Check-Out</th>
+                        <th>Accompanying</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for guest in guests %}
+                    <tr>
+                        <td>{{ guest.guest_id }}</td>
+                        <td>{{ guest.name }}</td>
+                        <td>{{ guest.room.room_number }}</td>
+                        <td>{{ guest.formatted_check_in }}</td>
+                        <td>{{ guest.formatted_check_out }}</td>
+                        <td>
+                            {{ guest.adults }} Adult{% if guest.adults > 1 %}s{% endif %}
+                            {% if guest.children > 0 %}
+                                + {{ guest.children }} Child{% if guest.children > 1 %}ren{% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ guest.status.lower().replace(' ', '-') }}">
+                                {{ guest.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-edit" onclick="location.href='{{ url_for('guest_details', guest_id=guest.id) }}'">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <button class="btn btn-delete" onclick="openDeleteModal({{ guest.id }}, '{{ guest.name }}')">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                            {% if guest.status == 'Checked-In' %}
+                            <button class="btn btn-checkout" onclick="checkoutGuest({{ guest.id }}, '{{ guest.name }}')">
+                                <i class="fas fa-door-open"></i> Check Out
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 20px;">
+                            {% if search_query %}
+                                No guests found for "{{ search_query }}"
+                            {% else %}
+                                No guests found
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Add Guest Modal -->
+    <div class="modal" id="addGuestModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Guest</h3>
+                <button class="close-modal" onclick="closeModal('addGuestModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addGuestForm" enctype="multipart/form-data" onsubmit="addGuest(event)">
+                    <div class="form-group required">
+                        <label>Full Name</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group required">
+                            <label>Phone</label>
+                            <input type="tel" name="phone" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" name="email" class="form-control">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Age</label>
+                            <input type="number" name="age" class="form-control" min="0">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Address</label>
+                        <textarea name="address" class="form-control" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group required">
+                            <label>ID Proof Type</label>
+                            <select name="id_proof_type" class="form-control" required>
+                                <option value="">Select ID Type</option>
+                                <option value="Passport">Passport</option>
+                                <option value="Driver License">Driver License</option>
+                                <option value="National ID">National ID</option>
+                            </select>
+                        </div>
+                        <div class="form-group required">
+                            <label>ID Number</label>
+                            <input type="text" name="id_proof_number" class="form-control" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group required">
+                        <label>Room</label>
+                        <select name="room_id" class="form-control" required>
+                            <option value="">Select Room</option>
+                            {% for room in available_rooms %}
+                            <option value="{{ room.id }}">{{ room.room_number }} ({{ room.room_type }}, {{ room.formatted_rate }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Custom Rate (per night)</label>
+                        <input type="number" name="custom_rate" class="form-control" step="0.01" min="0" 
+                               placeholder="Leave blank to use room rate">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Purpose of Stay</label>
+                        <input type="text" name="purpose" class="form-control">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group required">
+                            <label>Adults (including guest)</label>
+                            <input type="number" name="adults" class="form-control" min="1" value="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Children</label>
+                            <input type="number" name="children" class="form-control" min="0" value="0">
+                        </div>
+                    </div>
+                    
+                    <!-- Accompanying Persons Section -->
+                    <div id="accompanyingSection" style="display: none; margin-top: 20px; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
+                        <h4 style="margin-bottom: 15px;">Accompanying Persons Details</h4>
+                        <div id="accompanyingPersonsContainer">
+                            <!-- Dynamic fields will be added here -->
+                        </div>
+                        <button type="button" class="btn" style="margin-top: 10px;" onclick="addAccompanyingPerson()">
+                            <i class="fas fa-plus"></i> Add Person
+                        </button>
+                    </div>
+                    
+                    <div class="form-group required">
+                        <label>Check-In Date & Time</label>
+                        <input type="datetime-local" name="check_in" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Guest Photo</label>
+                            <input type="file" name="guest_photo" accept="image/*" class="form-control">
+                            <small class="form-text text-muted">Accepted formats: JPG, PNG, GIF</small>
+                        </div>
+                        <div class="form-group">
+                            <label>ID Proof Photo</label>
+                            <input type="file" name="id_photo" accept="image/*" class="form-control">
+                            <small class="form-text text-muted">Accepted formats: JPG, PNG, GIF</small>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn-submit">Add Guest</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Delete Confirmation Modal -->
+    <div class="modal" id="deleteModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Confirm Delete</h3>
+                <button class="close-modal" onclick="closeModal('deleteModal')">&times;</button>
+            </div>
+            <div class="delete-confirm">
+                <p>Are you sure you want to delete guest <strong id="guestName"></strong>?</p>
+                <div class="delete-btns">
+                    <button class="btn btn-cancel" onclick="closeModal('deleteModal')">Cancel</button>
+                    <button class="btn btn-confirm" onclick="deleteGuest()">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        .accompanying-person {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: white;
+        }
+        
+        .accompanying-person h5 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        /* Export buttons */
+.export-buttons {
+    margin: 15px 0;
+    display: flex;
+    gap: 10px;
+}
+
+.btn-export {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 15px;
+    border-radius: 4px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.3s;
+}
+
+.btn-excel {
+    background-color: #28a745;
+    color: white;
+    border: none;
+}
+
+.btn-pdf {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+}
+
+.btn-excel:hover, .btn-pdf:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+}
+    </style>
+    
+    <script>
+        let currentGuestId = null;
+        let currentGuestName = null;
+        
+        // Set current date and time as default for check-in
+        document.addEventListener('DOMContentLoaded', function() {
+            const now = new Date();
+            // Format to YYYY-MM-DDTHH:MM
+            const datetimeLocal = now.toISOString().slice(0, 16);
+            document.querySelector('input[name="check_in"]').value = datetimeLocal;
+            
+            // Add event listeners to adults/children fields
+            document.querySelector('input[name="adults"]').addEventListener('change', updateAccompanyingSection);
+            document.querySelector('input[name="children"]').addEventListener('change', updateAccompanyingSection);
+            
+            // Initialize section
+            updateAccompanyingSection();
+            
+            // Show toast if no guests found with search query
+            {% if search_query and not guests %}
+                showToast('No guest details found for "{{ search_query }}"', 'info');
+            {% endif %}
+        });
+        
+        function updateAccompanyingSection() {
+            const adults = parseInt(document.querySelector('input[name="adults"]').value) || 1;
+            const children = parseInt(document.querySelector('input[name="children"]').value) || 0;
+            const totalPersons = (adults - 1) + children;
+            
+            const section = document.getElementById('accompanyingSection');
+            const container = document.getElementById('accompanyingPersonsContainer');
+            
+            if (totalPersons > 0) {
+                section.style.display = 'block';
+                container.innerHTML = '';
+                
+                for (let i = 0; i < totalPersons; i++) {
+                    addAccompanyingPerson();
+                }
+            } else {
+                section.style.display = 'none';
+                container.innerHTML = '';
+            }
+        }
+        
+        function addAccompanyingPerson() {
+            const container = document.getElementById('accompanyingPersonsContainer');
+            const index = container.children.length;
+            
+            const personDiv = document.createElement('div');
+            personDiv.className = 'accompanying-person';
+            
+            personDiv.innerHTML = `
+                <h5>Person ${index + 1}</h5>
+                <div class="form-row">
+                    <div class="form-group required">
+                        <label>Full Name</label>
+                        <input type="text" name="accompanying_name[]" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Relationship to Guest</label>
+                        <input type="text" name="accompanying_relationship[]" class="form-control" placeholder="e.g., Spouse, Child, Friend">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group required">
+                        <label>Age</label>
+                        <input type="number" name="accompanying_age[]" class="form-control" min="1" required>
+                    </div>
+                    <div class="form-group required">
+                        <label>Gender</label>
+                        <select name="accompanying_gender[]" class="form-control" required>
+                            <option value="">Select Gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                            <option value="Prefer not to say">Prefer not to say</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>ID Proof Type</label>
+                    <select name="accompanying_id_type[]" class="form-control">
+                        <option value="">Select ID Type</option>
+                        <option value="Passport">Passport</option>
+                        <option value="Driver License">Driver License</option>
+                        <option value="School ID">School ID</option>
+                        <option value="Birth Certificate">Birth Certificate</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>ID Number</label>
+                    <input type="text" name="accompanying_id_number[]" class="form-control">
+                </div>
+                <button type="button" class="btn btn-delete" onclick="this.parentNode.remove()" style="margin-top: 10px;">
+                    <i class="fas fa-trash"></i> Remove
+                </button>
+            `;
+            
+            container.appendChild(personDiv);
+        }
+        
+        function addGuest(event) {
+            event.preventDefault();
+            const form = document.getElementById('addGuestForm');
+            const formData = new FormData(form);
+            
+            fetch("{{ url_for('add_guest') }}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Guest added successfully!');
+                    closeModal('addGuestModal');
+                    form.reset();
+                    // Reload page to show new guest
+                    setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    showToast(data.error || 'Error adding guest', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred. Please try again.', 'error');
+            });
+        }
+        
+        function openDeleteModal(guestId, guestName) {
+            currentGuestId = guestId;
+            currentGuestName = guestName;
+            document.getElementById('guestName').textContent = guestName;
+            openModal('deleteModal');
+        }
+        
+        function deleteGuest() {
+            if (!currentGuestId) return;
+            
+            fetch(`/delete_guest/${currentGuestId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Guest deleted successfully!');
+                    closeModal('deleteModal');
+                    // Reload the page to reflect changes
+                    setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    showToast(data.error || 'Error deleting guest', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred. Please try again.', 'error');
+            });
+        }
+        
+        function checkoutGuest(guestId, guestName) {
+            if (!confirm(`Check out ${guestName}?`)) return;
+            
+            const formData = new FormData();
+            formData.append('status', 'Checked-Out');
+            
+            fetch(`/update_guest_status/${guestId}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(`Guest ${guestName} checked out successfully!`);
+                    // Reload the page to reflect changes
+                    setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    showToast(data.error || 'Error checking out guest', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred. Please try again.', 'error');
+            });
+        }
+    </script>
+{% endblock %}

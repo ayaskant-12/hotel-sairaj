@@ -1,0 +1,515 @@
+{% extends "base.html" %}
+
+{% block page_title %}Booking Management{% endblock %}
+
+{% block content %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="font-weight: 600;">Booking Management</h2>
+        <button class="add-guest-btn" onclick="openModal('addBookingModal')">
+            <i class="fas fa-plus"></i> Add New Booking
+        </button>
+    </div>
+    <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+    <a href="{{ url_for('export_bookings_excel') }}" class="btn btn-success">
+        <i class="fas fa-file-excel"></i> Export to Excel
+    </a>
+    <a href="{{ url_for('export_bookings_pdf') }}" class="btn btn-danger">
+        <i class="fas fa-file-pdf"></i> Export to PDF
+    </a>
+</div>
+    <!-- Search Bar -->
+    <div style="margin-bottom: 20px; display: flex;">
+        <form id="searchForm" action="{{ url_for('bookings') }}" method="GET" style="display: flex; width: 100%;">
+            <input type="text" name="search" class="form-control" placeholder="Search by name, phone, or email" 
+                   value="{{ search_query }}" style="border-radius: 4px 0 0 4px;">
+            <button type="submit" class="btn btn-primary" style="border-radius: 0 4px 4px 0; padding: 0 15px;">
+                <i class="fas fa-search"></i>
+            </button>
+        </form>
+        {% if search_query %}
+<div style="margin-bottom: 15px;">
+    <a href="{{ url_for('bookings') }}" class="btn" style="background: #6c757d; color: white;">
+        <i class="fas fa-times"></i> Clear Search
+    </a>
+</div>
+{% endif %}
+    </div>
+    
+    <!-- Tabs for Bookings -->
+    <div class="tabs" style="margin-bottom: 20px;">
+        <button class="tab-btn active" onclick="openTab(event, 'pending-bookings')">Active (Pending)</button>
+        <button class="tab-btn" onclick="openTab(event, 'confirmed-bookings')">Confirmed</button>
+        <button class="tab-btn" onclick="openTab(event, 'cancelled-bookings')">Cancelled</button>
+    </div>
+    
+    <!-- Pending Bookings Tab -->
+    <div id="pending-bookings" class="tab-content" style="display: block;">
+        <div class="card">
+            <div class="card-body">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Arrival</th>
+                            <th>Room</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if search_query and not pending_bookings %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 20px;">
+                            No pending bookings found for "{{ search_query }}"
+                        </td>
+                    </tr>
+                    {% else %}
+                        {% for booking in pending_bookings %}
+                        <tr>
+                            <td>{{ booking.name }}</td>
+                            <td>{{ booking.phone }}</td>
+                            <td>{{ booking.formatted_arrival }}</td>
+                            <td>{{ booking.room.room_number if booking.room else '-' }}</td>
+                            <td>
+                                <span class="status-badge status-pending">
+                                    {{ booking.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-edit" onclick="openEditBookingModal({{ booking.id }})">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button class="btn btn-success" onclick="confirmBooking({{ booking.id }}, '{{ booking.name }}')">
+                                    <i class="fas fa-check"></i> Confirm
+                                </button>
+                                <button class="btn btn-danger" onclick="cancelBooking({{ booking.id }}, '{{ booking.name }}')">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 20px;">
+                                No pending bookings
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Confirmed Bookings Tab -->
+    <div id="confirmed-bookings" class="tab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Arrival</th>
+                            <th>Room</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if search_query and not confirmed_bookings %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 20px;">
+                            No confirmed bookings found for "{{ search_query }}"
+                        </td>
+                    </tr>
+                    {% else %}
+                        {% for booking in confirmed_bookings %}
+                        <tr>
+                            <td>{{ booking.name }}</td>
+                            <td>{{ booking.phone }}</td>
+                            <td>{{ booking.formatted_arrival }}</td>
+                            <td>{{ booking.room.room_number if booking.room else '-' }}</td>
+                            <td>
+                                <span class="status-badge status-confirmed">
+                                    {{ booking.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-danger" onclick="cancelBooking({{ booking.id }}, '{{ booking.name }}')">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 20px;">
+                                No confirmed bookings
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Cancelled Bookings Tab -->
+    <div id="cancelled-bookings" class="tab-content" style="display: none;">
+        <div class="card">
+            <div class="card-body">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Arrival</th>
+                            <th>Room</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if search_query and not cancelled_bookings %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 20px;">
+                            No cancelled bookings found for "{{ search_query }}"
+                        </td>
+                    </tr>
+                    {% else %}
+                        {% for booking in cancelled_bookings %}
+                        <tr>
+                            <td>{{ booking.name }}</td>
+                            <td>{{ booking.phone }}</td>
+                            <td>{{ booking.formatted_arrival }}</td>
+                            <td>{{ booking.room.room_number if booking.room else '-' }}</td>
+                            <td>
+                                <span class="status-badge status-cancelled">
+                                    {{ booking.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-delete" onclick="openDeleteBookingModal({{ booking.id }}, '{{ booking.name }}')">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 20px;">
+                                No cancelled bookings
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Booking Modal -->
+    <div class="modal" id="addBookingModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Booking</h3>
+                <button class="close-modal" onclick="closeModal('addBookingModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addBookingForm" onsubmit="addBooking(event)">
+                    <div class="form-group required">
+                        <label>Full Name</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group required">
+                            <label>Phone</label>
+                            <input type="tel" name="phone" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" name="email" class="form-control">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group required">
+                        <label>Arrival Date & Time</label>
+                        <input type="datetime-local" name="arrival_date" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group required">
+                        <label>Room</label>
+                        <select name="room_id" class="form-control" required>
+                            <option value="">Select Room</option>
+                            {% for room in available_rooms %}
+                            <option value="{{ room.id }}">{{ room.room_number }} ({{ room.room_type }}, {{ room.formatted_rate }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea name="notes" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <!-- Hotel Contact Information -->
+                    <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <p style="margin: 0; font-size: 0.9rem; text-align: center;">
+                            <strong>Hotel SairaJ</strong><br>
+                            B1- Chandaka Industrial Estate, Patia, Bhubaneswar Pin-751024<br>
+                            Phone: 7735388115, 9078030107
+                        </p>
+                    </div>
+                    
+                    <button type="submit" class="btn-submit">Add Booking</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Booking Modal -->
+    <div class="modal" id="editBookingModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Booking</h3>
+                <button class="close-modal" onclick="closeModal('editBookingModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editBookingForm" onsubmit="updateBooking(event)">
+                    <input type="hidden" id="edit_booking_id" name="booking_id">
+                    
+                    <div class="form-group required">
+                        <label>Full Name</label>
+                        <input type="text" id="edit_name" name="name" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group required">
+                            <label>Phone</label>
+                            <input type="tel" id="edit_phone" name="phone" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="edit_email" name="email" class="form-control">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group required">
+                        <label>Arrival Date & Time</label>
+                        <input type="datetime-local" id="edit_arrival" name="arrival_date" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group required">
+                        <label>Room</label>
+                        <select id="edit_room_id" name="room_id" class="form-control" required>
+                            <option value="">Select Room</option>
+                            {% for room in available_rooms %}
+                            <option value="{{ room.id }}">{{ room.room_number }} ({{ room.room_type }}, {{ room.formatted_rate }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea id="edit_notes" name="notes" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn-submit">Update Booking</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Delete Booking Modal -->
+    <div class="modal" id="deleteBookingModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Confirm Delete</h3>
+                <button class="close-modal" onclick="closeModal('deleteBookingModal')">&times;</button>
+            </div>
+            <div class="delete-confirm">
+                <p>Are you sure you want to delete booking for <strong id="bookingName"></strong>?</p>
+                <div class="delete-btns">
+                    <button class="btn btn-cancel" onclick="closeModal('deleteBookingModal')">Cancel</button>
+                    <button class="btn btn-confirm" onclick="deleteBooking()">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentBookingId = null;
+        let currentBookingName = null;
+        
+        // Set current date and time as default for arrival
+        document.addEventListener('DOMContentLoaded', function() {
+            const now = new Date();
+            const datetimeLocal = now.toISOString().slice(0, 16);
+            document.querySelector('input[name="arrival_date"]').value = datetimeLocal;
+        });
+        
+        // Tab functionality
+        function openTab(evt, tabName) {
+            // Hide all tab content
+            const tabcontent = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            
+            // Remove active class from all tab buttons
+            const tablinks = document.getElementsByClassName("tab-btn");
+            for (let i = 0; i < tablinks.length; i++) {
+                tablinks[i].classList.remove("active");
+            }
+            
+            // Show current tab and mark button active
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.classList.add("active");
+        }
+        
+        function addBooking(event) {
+            event.preventDefault();
+            const form = document.getElementById('addBookingForm');
+            const formData = new FormData(form);
+            
+            fetch("{{ url_for('add_booking') }}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Booking added successfully!');
+                    closeModal('addBookingModal');
+                    form.reset();
+                    setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    showToast(data.error || 'Error adding booking', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred. Please try again.', 'error');
+            });
+        }
+        
+        function openEditBookingModal(bookingId) {
+            fetch(`/get_booking_details/${bookingId}`)
+            .then(response => response.json())
+            .then(booking => {
+                if (booking) {
+                    document.getElementById('edit_booking_id').value = booking.id;
+                    document.getElementById('edit_name').value = booking.name;
+                    document.getElementById('edit_phone').value = booking.phone;
+                    document.getElementById('edit_email').value = booking.email || '';
+                    
+                    // Format datetime for input field
+                    const arrival = new Date(booking.arrival_date);
+                    const formattedArrival = arrival.toISOString().slice(0, 16);
+                    document.getElementById('edit_arrival').value = formattedArrival;
+                    
+                    document.getElementById('edit_room_id').value = booking.room_id;
+                    document.getElementById('edit_notes').value = booking.notes || '';
+                    
+                    openModal('editBookingModal');
+                } else {
+                    showToast('Booking not found', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Error fetching booking details', 'error');
+            });
+        }
+        
+        function updateBooking(event) {
+            event.preventDefault();
+            const form = document.getElementById('editBookingForm');
+            const formData = new FormData(form);
+            const bookingId = formData.get('booking_id');
+            
+            fetch(`/update_booking/${bookingId}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Booking updated successfully!');
+                    closeModal('editBookingModal');
+                    setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    showToast(data.error || 'Error updating booking', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred. Please try again.', 'error');
+            });
+        }
+        
+        function confirmBooking(bookingId, bookingName) {
+            if (!confirm(`Confirm booking for ${bookingName}?`)) return;
+            
+            updateBookingStatus(bookingId, 'Confirmed');
+        }
+        
+        function cancelBooking(bookingId, bookingName) {
+            if (!confirm(`Cancel booking for ${bookingName}?`)) return;
+            
+            updateBookingStatus(bookingId, 'Cancelled');
+        }
+        
+        function updateBookingStatus(bookingId, status) {
+            const formData = new FormData();
+            formData.append('status', status);
+            
+            fetch(`/update_booking_status/${bookingId}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const action = status === 'Confirmed' ? 'confirmed' : 'cancelled';
+                    showToast(`Booking ${action} successfully!`);
+                    // Reload page to update tabs
+                    setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    showToast(data.error || `Error ${status.toLowerCase()} booking`, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred. Please try again.', 'error');
+            });
+        }
+        
+        function openDeleteBookingModal(bookingId, bookingName) {
+            currentBookingId = bookingId;
+            currentBookingName = bookingName;
+            document.getElementById('bookingName').textContent = bookingName;
+            openModal('deleteBookingModal');
+        }
+        
+        function deleteBooking() {
+            if (!currentBookingId) return;
+            
+            fetch(`/delete_booking/${currentBookingId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Booking deleted successfully!');
+                    closeModal('deleteBookingModal');
+                    setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    showToast(data.error || 'Error deleting booking', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred. Please try again.', 'error');
+            });
+        }
+    </script>
+{% endblock %}

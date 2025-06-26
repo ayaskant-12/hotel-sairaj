@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block page_title %}Room Management{% endblock %}
+
+{% block content %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="font-weight: 600;">Room Management</h2>
+        <button class="add-guest-btn" onclick="openModal('addRoomModal')">
+            <i class="fas fa-plus"></i> Add New Room
+        </button>
+    </div>
+    
+    <div class="card">
+        <div class="card-body">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Room No.</th>
+                        <th>Type</th>
+                        <th>Rate</th>
+                        <th>Status</th>
+                        <th>Description</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for room in rooms %}
+                    <tr>
+                        <td>{{ room.room_number }}</td>
+                        <td>{{ room.room_type }}</td>
+                        <td>{{ room.formatted_rate }}</td>
+                        <td>
+                            <span class="status-badge status-{{ room.status.lower() }}">
+                                {{ room.status }}
+                            </span>
+                        </td>
+                        <td>{{ room.description or '' | truncate(30) }}</td>
+                        <td>
+                            <button class="btn btn-edit" onclick="openEditRoomModal({{ room.id }})">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="btn btn-delete" onclick="openDeleteRoomModal({{ room.id }}, '{{ room.room_number }}')">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Add Room Modal -->
+    <div class="modal" id="addRoomModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Room</h3>
+                <button class="close-modal" onclick="closeModal('addRoomModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addRoomForm" onsubmit="addRoom(event)">
+                    <div class="form-group required">
+                        <label>Room Number</label>
+                        <input type="text" name="room_number" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group required">
+                            <label>Room Type</label>
+                            <input type="text" name="room_type" class="form-control" required>
+                        </div>
+                        <div class="form-group required">
+                            <label>Rate (₹)</label>
+                            <input type="number" name="rate" class="form-control" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select name="status" class="form-control">
+                            <option value="Available">Available</option>
+                            <option value="Occupied">Occupied</option>
+                            <option value="Maintenance">Maintenance</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn-submit">Add Room</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Room Modal -->
+    <div class="modal" id="editRoomModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Room</h3>
+                <button class="close-modal" onclick="closeModal('editRoomModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editRoomForm" onsubmit="updateRoom(event)">
+                    <input type="hidden" id="edit_room_id" name="room_id">
+                    
+                    <div class="form-group required">
+                        <label>Room Number</label>
+                        <input type="text" id="edit_room_number" name="room_number" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group required">
+                            <label>Room Type</label>
+                            <input type="text" id="edit_room_type" name="room_type" class="form-control" required>
+                        </div>
+                        <div class="form-group required">
+                            <label>Rate (₹)</label>
+                            <input type="number" id="edit_rate" name="rate" class="form-control" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="edit_status" name="status" class="form-control">
+                            <option value="Available">Available</option>
+                            <option value="Occupied">Occupied</option>
+                            <option value="Maintenance">Maintenance</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="edit_description" name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn-submit">Update Room</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Delete Room Modal -->
+    <div class="modal" id="deleteRoomModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Confirm Delete</h3>
+                <button class="close-modal" onclick="closeModal('deleteRoomModal')">&times;</button>
+            </div>
+            <div class="delete-confirm">
+                <p>Are you sure you want to delete room <strong id="roomNumber"></strong>?</p>
+                <div class="delete-btns">
+                    <button class="btn btn-cancel" onclick="closeModal('deleteRoomModal')">Cancel</button>
+                    <button class="btn btn-confirm" onclick="deleteRoom()">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentRoomId = null;
+        let currentRoomNumber = null;
+        
+        function addRoom(event) {
+            event.preventDefault();
+            const form = document.getElementById('addRoomForm');
+            const formData = new FormData(form);
+            
+            fetch("{{ url_for('add_room') }}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Room added successfully!');
+                    closeModal('addRoomModal');
+                    form.reset();
+                    // Reload the page to show new room
+                    setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    showToast(data.error || 'Error adding room', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred. Please try again.', 'error');
+            });
+        }
+        
+        function openEditRoomModal(roomId) {
+            // Fetch room details
+            fetch(`/room_details/${roomId}`)
+            .then(response => response.json())
+            .then(room => {
+                if (room) {
+                    document.getElementById('edit_room_id').value = room.id;
+                    document.getElementById('edit_room_number').value = room.room_number;
+                    document.getElementById('edit_room_type').value = room.room_type;
+                    document.getElementById('edit_rate').value = room.rate;
+                    document.getElementById('edit_status').value = room.status;
+                    document.getElementById('edit_description').value = room.description || '';
+                    
+                    openModal('editRoomModal');
+                } else {
+                    showToast('Room not found', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Error fetching room details', 'error');
+            });
+        }
+        
+        function updateRoom(event) {
+            event.preventDefault();
+            const form = document.getElementById('editRoomForm');
+            const formData = new FormData(form);
+            const roomId = formData.get('room_id');
+            
+            fetch(`/update_room/${roomId}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Room updated successfully!');
+                    closeModal('editRoomModal');
+                    // Reload the page to reflect changes
+                    setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    showToast(data.error || 'Error updating room', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred. Please try again.', 'error');
+            });
+        }
+        
+        function openDeleteRoomModal(roomId, roomNumber) {
+            currentRoomId = roomId;
+            currentRoomNumber = roomNumber;
+            document.getElementById('roomNumber').textContent = roomNumber;
+            openModal('deleteRoomModal');
+        }
+        
+        function deleteRoom() {
+            if (!currentRoomId) return;
+            
+            fetch(`/delete_room/${currentRoomId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Room deleted successfully!');
+                    closeModal('deleteRoomModal');
+                    // Reload the page to reflect changes
+                    setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    showToast(data.error || 'Error deleting room', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred. Please try again.', 'error');
+            });
+        }
+    </script>
+{% endblock %}

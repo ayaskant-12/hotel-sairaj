@@ -1,0 +1,36 @@
+<!-- templates/login.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; height: 80vh;">
+    <div style="background: white; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 400px; padding: 30px;">
+        <div style="text-align: center; margin-bottom: 30px;">
+            <i class="fas fa-hotel" style="font-size: 3rem; color: #1a73e8; margin-bottom: 15px;"></i>
+            <h2 style="font-weight: 600;">Hotel SairaJ Admin</h2>
+            <p style="color: #777;">Sign in to your account</p>
+        </div>
+        
+        {% if error %}
+        <div style="background: rgba(220, 53, 69, 0.1); color: #dc3545; padding: 10px 15px; border-radius: 4px; margin-bottom: 20px;">
+            {{ error }}
+        </div>
+        {% endif %}
+        
+        <form method="POST" action="{{ url_for('login') }}">
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">Username</label>
+                <input type="text" name="username" class="form-control" required>
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">Password</label>
+                <input type="password" name="password" class="form-control" required>
+            </div>
+            
+            <button type="submit" style="background: #1a73e8; color: white; border: none; padding: 12px; border-radius: 4px; width: 100%; font-weight: 500; cursor: pointer;">
+                Sign In
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
