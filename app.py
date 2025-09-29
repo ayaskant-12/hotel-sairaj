@@ -16,7 +16,7 @@ from flask import send_file
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY') or os.urandom(24)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URI', 'postgresql://postgres:ayaskant@localhost/hotel_sairaj')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URI', 'postgresql://postgres:your-id@localhost/hotel_sairaj')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your_secret_key_here')
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -24,8 +24,8 @@ app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['TIMEZONE'] = pytz.timezone('Asia/Kolkata')
 app.config['SMTP_SERVER'] = 'smtp.gmail.com'
 app.config['SMTP_PORT'] = 587  # Use 587 for TLS
-app.config['SMTP_USERNAME'] = 'hotelsairajbbsr@gmail.com'
-app.config['SMTP_PASSWORD'] = 'olbtbefvhphnhiwb'  # Your app password
+app.config['SMTP_USERNAME'] = 'your-email@gmail.com' #Your email
+app.config['SMTP_PASSWORD'] = 'your-app-password'  # Your app password
 app.config['ADMIN_EMAIL'] = os.environ.get('ADMIN_EMAIL', 'admin@hotelsairaj.com')
 app.config['HOTEL_NAME'] = os.environ.get('HOTEL_NAME', 'Hotel SairaJ')
 
@@ -1322,3 +1322,4 @@ def create_admin_user():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
+
